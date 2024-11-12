@@ -1,38 +1,71 @@
-use crossterm::event::{self, Event};
-use ratatui::{text::Text, Frame};
+use console::style;
 use reqwest::{self, header::USER_AGENT};
+use serde::{Deserialize, Serialize};
 use std::{env, io};
+
+#[derive(Serialize, Deserialize)]
+struct UserData {
+    login: String,
+    name: String,
+    bio: String,
+    public_repos: u32,
+    followers: u32,
+    following: u32,
+}
 
 #[tokio::main]
 async fn main() {
-    let mut url = String::from("https://api.github.com/users/");
     let args: Vec<String> = env::args().collect();
-    url += &args[1];
     if args.len() < 2 {
         panic!("Error: Enter GitHub username.");
     }
-    let mut terminal = ratatui::init();
+
+    let mut url = String::from("https://api.github.com/users/");
+    url += &args[1];
+
     let client = reqwest::Client::new();
-    let response = client
+    let mut response = client
         .get(url)
-        .header(USER_AGENT, "test")
+        .header(USER_AGENT, "ghfetch")
         .send()
         .await
-        .unwrap()
-        .text()
-        .await;
-    println!("{:?}", response);
-    loop {
-        terminal.draw(draw).expect("failed to draw frame");
-        if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
-            break;
-        }
+        .unwrap();
+    if response.status().is_success() {
+        let strData = &response.text().await.unwrap();
+        let userData: UserData = serde_json::from_str(strData).unwrap();
+
+        println!();
+        println!("Login: {}", style(userData.login).cyan());
+        println!("Name: {}", style(userData.name).cyan());
+        println!("Bio: {}", style(userData.bio).cyan());
+        print!("Followers: {} ", style(userData.followers).cyan());
+        println!("Following: {}", style(userData.following).cyan());
+        println!(
+            "Public repositories: {}",
+            style(userData.public_repos).cyan()
+        );
     }
+    url = "https://api.github.com/graphql".to_string();
+    let json_body = "
+        {
+        user(login: '') {
+            pinnedItems(first: 6, types: REPOSITORY) {
+            nodes {
+                ... on Repository {
+                name
+                }
+            }
+            }
+        }
+        }"
+    .to_string();
 
-    ratatui::restore();
-}
-
-fn draw(frame: &mut Frame) {
-    let text = Text::raw("Hello World!");
-    frame.render_widget(text, frame.area());
+    response = client
+        .post(url)
+        .header(USER_AGENT, "ghfetch")
+        .json(&json_body)
+        .send()
+        .await
+        .unwrap();
+    println!("{}", response.text().await.unwrap());
 }
