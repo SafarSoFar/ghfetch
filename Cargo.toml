@@ -1,0 +1,10 @@
+[package]
+name = "gitfetch"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+reqwest = "0.12.9"
+tokio = { version = "1", features = ["full"] }
