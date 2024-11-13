@@ -1,4 +1,3 @@
-use console::style;
 use reqwest::{
     self,
     header::{AUTHORIZATION, USER_AGENT},
@@ -6,101 +5,15 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{env, io};
+use termion::{
+    color::{self, Reset},
+    style,
+};
 
-#[derive(Serialize, Deserialize)]
-struct UserData {
-    login: String,
-    name: String,
-    bio: String,
-    public_repos: u32,
-    followers: u32,
-    following: u32,
-}
+mod resp_structs;
+use resp_structs::*;
 
-#[derive(Deserialize, Debug)]
-struct GraphRespData {
-    data: Data,
-}
-
-#[derive(Deserialize, Debug)]
-struct Data {
-    user: User,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct User {
-    pinned_items: PinnedItems,
-    contributions_collection: ContributionsCollection,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct ContributionsCollection {
-    contribution_calendar: ContributionCalendar,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct ContributionCalendar {
-    total_contributions: u32,
-    weeks: Vec<Week>,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct Week {
-    contribution_days: Vec<ContributionDay>,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct ContributionDay {
-    contribution_count: u32,
-    date: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct PinnedItems {
-    nodes: Vec<Node>,
-}
-
-#[derive(Deserialize, Debug)]
-struct Node {
-    name: String,
-    description: String,
-    stargazers: Stargazers,
-    forks: Forks,
-}
-
-#[derive(Deserialize, Debug)]
-struct Forks {
-    totalCount: u32,
-}
-
-#[derive(Deserialize, Debug)]
-struct Stargazers {
-    totalCount: u32,
-}
-
-#[derive(Serialize)]
-struct GraphQLRequest {
-    query: String,
-}
-
-#[tokio::main]
-async fn main() {
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        1 => panic!("Error: Enter GitHub username and Token"),
-        2 => panic!("Error: Enter  GitHub Token"),
-        _ => {}
-    }
-
-    // Starting from index 1 because the first argument is the binary location
-    let login: String = args[1].clone();
-    let token: String = args[2].clone();
-
+async fn get_user_info(login: &str) {
     let mut url = String::from("https://api.github.com/users/");
     url += &login;
 
@@ -117,24 +30,26 @@ async fn main() {
 
         println!();
         println!(
-            "User: {} ({})",
-            style(userData.login).cyan(),
-            style(userData.name).cyan()
+            "User: {} {} ({}) {}",
+            color::Fg(color::Red),
+            userData.login,
+            userData.name,
+            color::Fg(color::Reset)
         );
-        println!("Bio: {}", style(userData.bio).cyan());
-        print!("Followers: {} ", style(userData.followers).cyan());
-        println!("Following: {}", style(userData.following).cyan());
-        println!(
-            "Public repositories: {}",
-            style(userData.public_repos).cyan()
-        );
+        println!("Bio: {}", userData.bio);
+        print!("Followers: {} ", userData.followers);
+        println!("Following: {}", userData.following);
+        println!("Public repositories: {}", userData.public_repos);
     }
-    url = "https://api.github.com/graphql".to_string();
+}
+
+async fn get_user_work_info(login: &str, token: &str) {
+    let url = "https://api.github.com/graphql".to_string();
     let json_body = r#"
         query {
             user(login: ""#
         .to_string()
-        + &login.to_string()
+        + login
         + r#"") {
                 contributionsCollection{
                     contributionCalendar{
@@ -170,7 +85,8 @@ async fn main() {
         query: json_body.to_string(),
     };
 
-    response = client
+    let client = reqwest::Client::new();
+    let response = client
         .post(url)
         .header(USER_AGENT, "ghfetch")
         .header(AUTHORIZATION, format!("Bearer {}", token))
@@ -183,7 +99,6 @@ async fn main() {
 
     let graph_resp_data: GraphRespData = serde_json::from_str(&graph_data).unwrap();
 
-    println!();
     println!(
         "Total contributions {}",
         graph_resp_data
@@ -195,13 +110,11 @@ async fn main() {
     );
     println!("Pinned Repos:");
     for node in graph_resp_data.data.user.pinned_items.nodes {
-        println!("Repo: {} ", style(node.name).cyan());
+        println!("Repo: {} ", node.name);
         println!("{}", node.description);
         println!(
-            r"{} {} \|/ {}",
-            style("*").yellow(),
-            style(node.stargazers.totalCount).cyan(),
-            style(node.forks.totalCount).cyan()
+            r#" * {} \|/ {}"#,
+            node.stargazers.totalCount, node.forks.totalCount
         );
         println!();
     }
@@ -213,7 +126,25 @@ async fn main() {
         .weeks
     {
         for day in week.contribution_days {
-            print!("{} ", day.contribution_count);
+            print!("{}", day.contribution_count);
         }
+        println!();
     }
+}
+
+#[tokio::main]
+async fn main() {
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        1 => panic!("Error: Enter GitHub username and Token"),
+        2 => panic!("Error: Enter  GitHub Token"),
+        _ => {}
+    }
+
+    // Starting from index 1 because the first argument is the binary location
+    let login: String = args[1].clone();
+    let token: String = args[2].clone();
+
+    get_user_info(&login.to_string()).await;
+    get_user_work_info(&login.to_string(), &token.to_string()).await;
 }
