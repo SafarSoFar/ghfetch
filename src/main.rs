@@ -31,6 +31,33 @@ struct Data {
 #[serde(rename_all = "camelCase")]
 struct User {
     pinned_items: PinnedItems,
+    contributions_collection: ContributionsCollection,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ContributionsCollection {
+    contribution_calendar: ContributionCalendar,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ContributionCalendar {
+    total_contributions: u32,
+    weeks: Vec<Week>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Week {
+    contribution_days: Vec<ContributionDay>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ContributionDay {
+    contribution_count: u32,
+    date: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -41,7 +68,14 @@ struct PinnedItems {
 #[derive(Deserialize, Debug)]
 struct Node {
     name: String,
+    description: String,
     stargazers: Stargazers,
+    forks: Forks,
+}
+
+#[derive(Deserialize, Debug)]
+struct Forks {
+    totalCount: u32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -82,8 +116,11 @@ async fn main() {
         let userData: UserData = serde_json::from_str(strData).unwrap();
 
         println!();
-        println!("Login: {}", style(userData.login).cyan());
-        println!("Name: {}", style(userData.name).cyan());
+        println!(
+            "User: {} ({})",
+            style(userData.login).cyan(),
+            style(userData.name).cyan()
+        );
         println!("Bio: {}", style(userData.bio).cyan());
         print!("Followers: {} ", style(userData.followers).cyan());
         println!("Following: {}", style(userData.following).cyan());
@@ -99,10 +136,26 @@ async fn main() {
         .to_string()
         + &login.to_string()
         + r#"") {
+                contributionsCollection{
+                    contributionCalendar{
+                        totalContributions,
+                        weeks{
+                            contributionDays{
+                                contributionCount
+                                date
+                            }
+                        }
+                        
+                    }
+                }
                 pinnedItems(first: 6, types: REPOSITORY) {
                     nodes {
                         ... on Repository {
                             name
+                            description
+                            forks{
+                                totalCount
+                            }
                             stargazers{
                                 totalCount     
                             }
@@ -112,9 +165,11 @@ async fn main() {
             }
         }
     "#;
+
     let graph = GraphQLRequest {
         query: json_body.to_string(),
     };
+
     response = client
         .post(url)
         .header(USER_AGENT, "ghfetch")
@@ -126,16 +181,39 @@ async fn main() {
 
     let graph_data = response.text().await.unwrap();
 
-    println!("{}", graph_data);
     let graph_resp_data: GraphRespData = serde_json::from_str(&graph_data).unwrap();
+
+    println!();
+    println!(
+        "Total contributions {}",
+        graph_resp_data
+            .data
+            .user
+            .contributions_collection
+            .contribution_calendar
+            .total_contributions
+    );
     println!("Pinned Repos:");
     for node in graph_resp_data.data.user.pinned_items.nodes {
+        println!("Repo: {} ", style(node.name).cyan());
+        println!("{}", node.description);
         println!(
-            "Name: {} {}: {} ",
-            style(node.name).cyan(),
+            r"{} {} \|/ {}",
             style("*").yellow(),
-            style(node.stargazers.totalCount).cyan()
+            style(node.stargazers.totalCount).cyan(),
+            style(node.forks.totalCount).cyan()
         );
+        println!();
     }
-    println!();
+    for week in graph_resp_data
+        .data
+        .user
+        .contributions_collection
+        .contribution_calendar
+        .weeks
+    {
+        for day in week.contribution_days {
+            print!("{} ", day.contribution_count);
+        }
+    }
 }
