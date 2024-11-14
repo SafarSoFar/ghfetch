@@ -3,12 +3,18 @@ use reqwest::{
     self,
     header::{AUTHORIZATION, USER_AGENT},
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Serialize};
 use serde_json::json;
-use std::{env, io};
+use std::{
+    env,
+    fs::{self, File},
+    io::{self, BufRead, BufReader, Read, Write},
+    path::Path,
+};
 use termion::{
     color::{self, Reset},
     cursor::{self, DetectCursorPos},
+    input::TermRead,
     raw::IntoRawMode,
     style,
 };
@@ -233,23 +239,84 @@ fn print_activity_square(contribution_count: u32) {
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    match args.len() {
-        1 => panic!("Error: Enter GitHub username and Token"),
-        2 => panic!("Error: Enter  GitHub Token"),
-        _ => {}
+
+    if is_config_file_exists() {
+        let (login, token) = read_config_file().unwrap();
+
+        get_user_info(&login).await;
+        get_user_work_info(&login, &token).await;
+    } else {
+        match args.len() {
+            1 => panic!("Error: Enter GitHub username + token"),
+            2 => {
+                get_user_info(&args[1]).await;
+                println!("Enter GitHub token for full information")
+            }
+            3 => {
+                println!("Save arguments to the config file?");
+                println!("Yes = [Y] No = [N]");
+                let mut read_buf = [0u8; 1];
+                io::stdin()
+                    .read_exact(&mut read_buf)
+                    .expect("Couldn't read the input character");
+
+                let ch = read_buf[0] as char;
+                let ch = ch.to_lowercase().next().unwrap();
+                if ch == 'y' {
+                    create_config_file(&args[1], &args[2])
+                }
+
+                get_user_info(&args[1]).await;
+                get_user_work_info(&args[1], &args[2]).await;
+            }
+            _ => {}
+        }
     }
 
     // Starting from index 1 because the first argument is the binary location
-    let login: String = args[1].clone();
-    let token: String = args[2].clone();
-
-    get_user_info(&login.to_string()).await;
-    get_user_work_info(&login.to_string(), &token.to_string()).await;
 
     unsafe {
-        while (logo_index != gh_logo_vec.len()) {
+        while logo_index != gh_logo_vec.len() {
             print_logo();
             println!();
         }
     }
+}
+
+//fn parse_args(args: Vec<String>) {
+//    match args.len() {
+//        1 => panic!("Error: Enter GitHub username and Token"),
+//        2 => panic!("Error: Enter  GitHub Token"),
+//        _ => {}
+//    }
+//
+//    let login = args[1].clone();
+//    let token = args[2].clone();
+//    create_config_file(login, token);
+//}
+
+fn is_config_file_exists() -> bool {
+    let file_path = Path::new("config");
+    file_path.exists()
+}
+fn read_config_file() -> io::Result<(String, String)> {
+    let mut login = String::new();
+    let mut token = String::new();
+    let file = File::open("config").expect("Couldn't open the config file");
+    let reader = BufReader::new(file);
+    for (i, line_content) in reader.lines().enumerate() {
+        match i {
+            0 => login = line_content?,
+            1 => token = line_content?,
+            _ => {}
+        }
+    }
+    Ok((login, token))
+}
+
+fn create_config_file(login: &str, token: &str) {
+    let mut file = File::create("config").expect("Couldn't create config file");
+    let _ = file.write(login.as_bytes());
+    let _ = file.write(b"\n");
+    let _ = file.write(token.as_bytes());
 }
