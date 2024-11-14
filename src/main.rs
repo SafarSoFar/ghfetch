@@ -1,3 +1,4 @@
+use console::Color;
 use reqwest::{
     self,
     header::{AUTHORIZATION, USER_AGENT},
@@ -128,10 +129,52 @@ async fn get_user_work_info(login: &str, token: &str) {
             .iter()
         {
             if i < week.contribution_days.len() {
-                print!("{}", week.contribution_days[i].contribution_count);
+                //print!("{}", week.contribution_days[i].contribution_count);
+                print_activity_square(week.contribution_days[i].contribution_count);
             }
         }
         println!();
+    }
+}
+
+fn print_activity_square(contribution_count: u32) {
+    if contribution_count == 0 {
+        print!(
+            "{}#{}",
+            color::Fg(color::Rgb(47, 52, 59)),
+            color::Fg(color::Reset)
+        );
+        return;
+    }
+    if contribution_count < 4 {
+        print!(
+            "{}#{}",
+            color::Fg(color::Rgb(14, 68, 41)),
+            color::Fg(color::Reset)
+        );
+        return;
+    }
+    if contribution_count < 8 {
+        print!(
+            "{}#{}",
+            color::Fg(color::Rgb(0, 109, 50)),
+            color::Fg(color::Reset)
+        );
+        return;
+    }
+    if contribution_count < 10 {
+        print!(
+            "{}#{}",
+            color::Fg(color::Rgb(38, 166, 65)),
+            color::Fg(color::Reset)
+        );
+        return;
+    } else {
+        print!(
+            "{}#{}",
+            color::Fg(color::Rgb(57, 211, 83)),
+            color::Fg(color::Reset)
+        );
     }
 }
 
