@@ -32,14 +32,61 @@ async fn get_user_info(login: &str) {
         let userData: UserData = serde_json::from_str(strData).unwrap();
 
         println!();
-        print!(
+
+        print_logo();
+        println!(
             "User: {} {} ({}) {} ",
             color::Fg(color::Red),
             userData.login,
             userData.name,
             color::Fg(color::Reset)
         );
-        println!(r#"Bio: '{}'"#, userData.bio);
+        //println!(r#"Bio: '{}'"#, userData.bio);
+    }
+}
+
+static mut logo_index: usize = 0;
+
+const gh_logo_vec: [&str; 33] = [
+    "                          @@@@@@@@@                          ",
+    "                   @@@@@@@@@@@@@@@@@@@@@@@                   ",
+    "               @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@               ",
+    "             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@             ",
+    "          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          ",
+    "        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@        ",
+    "       @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@       ",
+    "     @@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@     ",
+    "    @@@@@@@@@@       @@@@@@@     @@@@@@@       @@@@@@@@@@    ",
+    "   @@@@@@@@@@@                                 @@@@@@@@@@@   ",
+    "  @@@@@@@@@@@@                                 @@@@@@@@@@@@  ",
+    "  @@@@@@@@@@@@                                 @@@@@@@@@@@@  ",
+    " @@@@@@@@@@@@                                   @@@@@@@@@@@@ ",
+    " @@@@@@@@@@@                                     @@@@@@@@@@@ ",
+    "@@@@@@@@@@@                                       @@@@@@@@@@@",
+    "@@@@@@@@@@@                                       @@@@@@@@@@@",
+    "@@@@@@@@@@@                                       @@@@@@@@@@@",
+    "@@@@@@@@@@@                                       @@@@@@@@@@@",
+    "@@@@@@@@@@@@                                     @@@@@@@@@@@@",
+    "@@@@@@@@@@@@                                     @@@@@@@@@@@@",
+    " @@@@@@@@@@@@                                   @@@@@@@@@@@@ ",
+    " @@@@@@@@@@@@@                                 @@@@@@@@@@@@@ ",
+    "  @@@@@@@@@@@@@@                             @@@@@@@@@@@@@@  ",
+    "  @@@@@@   @@@@@@@@                       @@@@@@@@@@@@@@@@@  ",
+    "   @@@@@@@   @@@@@@@@@@@@           @@@@@@@@@@@@@@@@@@@@@@   ",
+    "    @@@@@@@@   @@@@@@@@@             @@@@@@@@@@@@@@@@@@@@    ",
+    "      @@@@@@@    @@@@@@               @@@@@@@@@@@@@@@@@      ",
+    "       @@@@@@                         @@@@@@@@@@@@@@@@       ",
+    "         @@@@@@@                      @@@@@@@@@@@@@@         ",
+    "           @@@@@@@@@@@@               @@@@@@@@@@@@           ",
+    "             @@@@@@@@@@               @@@@@@@@@@             ",
+    "                @@@@@@@               @@@@@@@                ",
+    "                    @@                 @@                    ",
+];
+
+fn print_logo() {
+    unsafe {
+        print!("{}      ", gh_logo_vec[logo_index]);
+        logo_index += 1;
     }
 }
 
@@ -63,7 +110,7 @@ async fn get_user_work_info(login: &str, token: &str) {
                         
                     }
                 }
-                pinnedItems(first: 3, types: REPOSITORY) {
+                pinnedItems(first: 6, types: REPOSITORY) {
                     nodes {
                         ... on Repository {
                             name
@@ -99,6 +146,7 @@ async fn get_user_work_info(login: &str, token: &str) {
 
     let graph_resp_data: GraphRespData = serde_json::from_str(&graph_data).unwrap();
 
+    print_logo();
     println!(
         "Total contributions {}",
         graph_resp_data
@@ -108,18 +156,22 @@ async fn get_user_work_info(login: &str, token: &str) {
             .contribution_calendar
             .total_contributions
     );
+    print_logo();
     println!("Pinned Repos:");
     for node in graph_resp_data.data.user.pinned_items.nodes {
+        print_logo();
         println!("Repo: {} ", node.name);
+        print_logo();
         println!("{}", node.description);
+        print_logo();
         println!(
             r#" * {} \|/ {}"#,
             node.stargazers.total_count, node.forks.total_count
         );
-        println!();
     }
 
     for i in 0..7 {
+        print_logo();
         for week in graph_resp_data
             .data
             .user
@@ -193,4 +245,11 @@ async fn main() {
 
     get_user_info(&login.to_string()).await;
     get_user_work_info(&login.to_string(), &token.to_string()).await;
+
+    unsafe {
+        while (logo_index != gh_logo_vec.len()) {
+            print_logo();
+            println!();
+        }
+    }
 }
