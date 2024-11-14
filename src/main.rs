@@ -7,6 +7,8 @@ use serde_json::json;
 use std::{env, io};
 use termion::{
     color::{self, Reset},
+    cursor::{self, DetectCursorPos},
+    raw::IntoRawMode,
     style,
 };
 
@@ -29,17 +31,14 @@ async fn get_user_info(login: &str) {
         let userData: UserData = serde_json::from_str(strData).unwrap();
 
         println!();
-        println!(
-            "User: {} {} ({}) {}",
+        print!(
+            "User: {} {} ({}) {} ",
             color::Fg(color::Red),
             userData.login,
             userData.name,
             color::Fg(color::Reset)
         );
-        println!("Bio: {}", userData.bio);
-        print!("Followers: {} ", userData.followers);
-        println!("Following: {}", userData.following);
-        println!("Public repositories: {}", userData.public_repos);
+        println!(r#"Bio: '{}'"#, userData.bio);
     }
 }
 
@@ -63,7 +62,7 @@ async fn get_user_work_info(login: &str, token: &str) {
                         
                     }
                 }
-                pinnedItems(first: 6, types: REPOSITORY) {
+                pinnedItems(first: 3, types: REPOSITORY) {
                     nodes {
                         ... on Repository {
                             name
@@ -114,19 +113,23 @@ async fn get_user_work_info(login: &str, token: &str) {
         println!("{}", node.description);
         println!(
             r#" * {} \|/ {}"#,
-            node.stargazers.totalCount, node.forks.totalCount
+            node.stargazers.total_count, node.forks.total_count
         );
         println!();
     }
-    for week in graph_resp_data
-        .data
-        .user
-        .contributions_collection
-        .contribution_calendar
-        .weeks
-    {
-        for day in week.contribution_days {
-            print!("{}", day.contribution_count);
+
+    for i in 0..7 {
+        for week in graph_resp_data
+            .data
+            .user
+            .contributions_collection
+            .contribution_calendar
+            .weeks
+            .iter()
+        {
+            if i < week.contribution_days.len() {
+                print!("{}", week.contribution_days[i].contribution_count);
+            }
         }
         println!();
     }

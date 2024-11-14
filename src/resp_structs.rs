@@ -68,13 +68,14 @@ pub struct Node {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Forks {
-    pub totalCount: u32,
+    pub total_count: u32,
 }
-
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Stargazers {
-    pub totalCount: u32,
+    pub total_count: u32,
 }
 
 #[derive(Serialize)]
