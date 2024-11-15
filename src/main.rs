@@ -1,4 +1,3 @@
-use console::Color;
 use reqwest::{
     self,
     header::{AUTHORIZATION, USER_AGENT},
@@ -22,6 +21,27 @@ use termion::{
 mod resp_structs;
 use resp_structs::*;
 
+fn custom_print_line(string_to_print: String) {
+    print_logo();
+    println!("{}", string_to_print);
+    return;
+}
+
+fn print_logo() {
+    unsafe {
+        if LOGO_INDEX >= GH_LOGO_VEC.len() {
+            return;
+        }
+        print!(
+            "{}{}{}      ",
+            color::Fg(color::White),
+            GH_LOGO_VEC[LOGO_INDEX],
+            color::Fg(color::Reset),
+        );
+        LOGO_INDEX += 1;
+    }
+}
+
 async fn get_user_info(login: &str) {
     let mut url = String::from("https://api.github.com/users/");
     url += &login;
@@ -33,27 +53,27 @@ async fn get_user_info(login: &str) {
         .send()
         .await
         .unwrap();
+
     if response.status().is_success() {
         let strData = &response.text().await.unwrap();
         let userData: UserData = serde_json::from_str(strData).unwrap();
 
         println!();
 
-        print_logo();
-        println!(
+        custom_print_line(format!(
             "User: {} {} ({}) {} ",
             color::Fg(color::Red),
             userData.login,
             userData.name,
             color::Fg(color::Reset)
-        );
+        ));
         //println!(r#"Bio: '{}'"#, userData.bio);
     }
 }
 
-static mut logo_index: usize = 0;
+static mut LOGO_INDEX: usize = 0;
 
-const gh_logo_vec: [&str; 33] = [
+const GH_LOGO_VEC: [&str; 33] = [
     "                          @@@@@@@@@                          ",
     "                   @@@@@@@@@@@@@@@@@@@@@@@                   ",
     "               @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@               ",
@@ -89,11 +109,8 @@ const gh_logo_vec: [&str; 33] = [
     "                    @@                 @@                    ",
 ];
 
-fn print_logo() {
-    unsafe {
-        print!("{}      ", gh_logo_vec[logo_index]);
-        logo_index += 1;
-    }
+fn print_border() {
+    println!("_______________________");
 }
 
 async fn get_user_work_info(login: &str, token: &str) {
@@ -152,8 +169,7 @@ async fn get_user_work_info(login: &str, token: &str) {
 
     let graph_resp_data: GraphRespData = serde_json::from_str(&graph_data).unwrap();
 
-    print_logo();
-    println!(
+    custom_print_line(format!(
         "Total contributions {}",
         graph_resp_data
             .data
@@ -161,19 +177,23 @@ async fn get_user_work_info(login: &str, token: &str) {
             .contributions_collection
             .contribution_calendar
             .total_contributions
-    );
-    print_logo();
-    println!("Pinned Repos:");
+    ));
+    custom_print_line("Pinned Repos".to_string());
+    print_border();
+
     for node in graph_resp_data.data.user.pinned_items.nodes {
+        custom_print_line(format!("Repo: {} ", node.name));
+        custom_print_line(format!("{}", node.description));
+        custom_print_line(format!(
+            r#" {}*{} {}   \|/ {}"#,
+            color::Fg(color::Yellow),
+            color::Fg(color::Reset),
+            node.stargazers.total_count,
+            node.forks.total_count
+        ));
+
         print_logo();
-        println!("Repo: {} ", node.name);
-        print_logo();
-        println!("{}", node.description);
-        print_logo();
-        println!(
-            r#" * {} \|/ {}"#,
-            node.stargazers.total_count, node.forks.total_count
-        );
+        print_border();
     }
 
     for i in 0..7 {
@@ -187,7 +207,6 @@ async fn get_user_work_info(login: &str, token: &str) {
             .iter()
         {
             if i < week.contribution_days.len() {
-                //print!("{}", week.contribution_days[i].contribution_count);
                 print_activity_square(week.contribution_days[i].contribution_count);
             }
         }
@@ -276,24 +295,12 @@ async fn main() {
     // Starting from index 1 because the first argument is the binary location
 
     unsafe {
-        while logo_index != gh_logo_vec.len() {
+        while LOGO_INDEX < GH_LOGO_VEC.len() {
             print_logo();
             println!();
         }
     }
 }
-
-//fn parse_args(args: Vec<String>) {
-//    match args.len() {
-//        1 => panic!("Error: Enter GitHub username and Token"),
-//        2 => panic!("Error: Enter  GitHub Token"),
-//        _ => {}
-//    }
-//
-//    let login = args[1].clone();
-//    let token = args[2].clone();
-//    create_config_file(login, token);
-//}
 
 fn is_config_file_exists() -> bool {
     let file_path = Path::new("config");
