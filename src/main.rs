@@ -2,21 +2,17 @@ use reqwest::{
     self,
     header::{AUTHORIZATION, USER_AGENT},
 };
-use serde::{de::Error, Deserialize, Serialize};
-use serde_json::json;
 use std::{
     env,
-    fs::{self, File},
+    fs::File,
     io::{self, BufRead, BufReader, Read, Stdout, Write},
     path::Path,
 };
 use termion::{
-    color::{self, Reset},
-    cursor::{DetectCursorPos, Goto},
+    color::{self},
+    cursor::DetectCursorPos,
     raw::{IntoRawMode, RawTerminal},
-    terminal_size,
 };
-use tokio::io::stdout;
 
 mod resp_structs;
 use resp_structs::*;
