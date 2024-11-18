@@ -12,8 +12,9 @@ use std::{
 };
 use termion::{
     color::{self, Reset},
-    cursor::DetectCursorPos,
+    cursor::{DetectCursorPos, Goto},
     raw::{IntoRawMode, RawTerminal},
+    terminal_size,
 };
 use tokio::io::stdout;
 
@@ -22,12 +23,21 @@ use resp_structs::*;
 
 static mut TERM_SIZE_X: u16 = 32;
 
-fn trim_to_fit_term(string_to_trim: String, raw_term: &mut RawTerminal<Stdout>) -> String {
+fn get_x_space_left(raw_term: &mut RawTerminal<Stdout>) -> usize {
     unsafe {
-        let (cur_pos_x, _) = raw_term.cursor_pos().unwrap_or_default();
-        let space_left = (TERM_SIZE_X - cur_pos_x) as i32;
-        string_to_trim.chars().take(space_left as usize).collect()
+        let (cur_pos_x, _) = raw_term.cursor_pos().unwrap();
+        let space_left = (TERM_SIZE_X as i32 - cur_pos_x as i32) as usize;
+        space_left
     }
+}
+
+fn trim_to_fit_term(string_to_trim: String, raw_term: &mut RawTerminal<Stdout>) -> String {
+    //let (cur_pos_x, _) = match raw_term.cursor_pos() {
+    //    Ok(val) => val,
+    //    Err(e) => (0, 0),
+    //};
+    let space_left = get_x_space_left(raw_term);
+    string_to_trim.chars().take(space_left).collect()
 }
 
 fn custom_print_line(string_to_print: String, raw_term: &mut RawTerminal<Stdout>) {
@@ -42,7 +52,7 @@ fn get_terminal_size_x() {
     }
 }
 
-const space_offset: &str = "      ";
+const SPACE_OFFSET: &str = "      ";
 fn print_logo(raw_term: &mut RawTerminal<Stdout>) {
     unsafe {
         let trimmed_logo_part = trim_to_fit_term(GH_LOGO_VEC[LOGO_INDEX].to_string(), raw_term);
@@ -51,7 +61,7 @@ fn print_logo(raw_term: &mut RawTerminal<Stdout>) {
             color::Fg(color::White),
             trimmed_logo_part,
             color::Fg(color::Reset),
-            space_offset
+            SPACE_OFFSET
         );
 
         // the last index is just empty space offsets
@@ -66,7 +76,7 @@ async fn get_user_info(login: &str, raw_term: &mut RawTerminal<Stdout>) {
     url += &login;
 
     let client = reqwest::Client::new();
-    let mut response = client
+    let response = client
         .get(url)
         .header(USER_AGENT, "ghfetch")
         .send()
@@ -74,8 +84,8 @@ async fn get_user_info(login: &str, raw_term: &mut RawTerminal<Stdout>) {
         .unwrap();
 
     if response.status().is_success() {
-        let strData = &response.text().await.unwrap();
-        let userData: UserData = serde_json::from_str(strData).unwrap();
+        let str_data = &response.text().await.unwrap();
+        let user_data: UserData = serde_json::from_str(str_data).unwrap();
 
         println!();
 
@@ -83,8 +93,8 @@ async fn get_user_info(login: &str, raw_term: &mut RawTerminal<Stdout>) {
             format!(
                 "User: {} {} ({}) {} ",
                 color::Fg(color::Red),
-                userData.login,
-                userData.name,
+                user_data.login,
+                user_data.name,
                 color::Fg(color::Reset)
             ),
             raw_term,
@@ -248,6 +258,9 @@ async fn get_user_work_info(login: &str, token: &str, raw_term: &mut RawTerminal
             .iter()
         {
             if i < week.contribution_days.len() {
+                if get_x_space_left(raw_term) <= 0 {
+                    break;
+                }
                 print_activity_square(week.contribution_days[i].contribution_count);
             }
         }
@@ -300,6 +313,7 @@ fn print_activity_square(contribution_count: u32) {
 async fn main() {
     let mut raw_term = std::io::stdout().into_raw_mode().unwrap();
     get_terminal_size_x();
+
     let args: Vec<String> = env::args().collect();
 
     if is_config_file_exists() {
