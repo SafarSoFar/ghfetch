@@ -5,7 +5,18 @@ ghfetch - is an utility to fetch information from GitHub profiles right in termi
 # Example
 !['Example screenshot'](assets/ghfetch-example.png)
 
+# Build 
+Build with cargo
+```
+cargo build
+```
+The executable will be stored in target/debug
+
 # Usage
+```
+./ghfetch [GITHUB_LOGIN] [GITHUB_TOKEN]
+```
+
 1. Provide GitHub login as a first argument for user info.
 2. Provide GitHub token as a second argument for repo, activity info.
 Using GitHub token with only 'read:user, user:follow' is strongly adviced.

@@ -37,7 +37,7 @@ fn trim_to_fit_term(string_to_trim: String, raw_term: &mut RawTerminal<Stdout>) 
 }
 
 fn custom_print_line(string_to_print: String, raw_term: &mut RawTerminal<Stdout>) {
-    print_logo(raw_term);
+    print_logo(raw_term, false);
     let truncated: String = trim_to_fit_term(string_to_print, raw_term);
     println!("{}\r", truncated);
 }
@@ -49,7 +49,7 @@ fn get_terminal_size_x() {
 }
 
 const SPACE_OFFSET: &str = "      ";
-fn print_logo(raw_term: &mut RawTerminal<Stdout>) {
+fn print_logo(raw_term: &mut RawTerminal<Stdout>, is_info_printed: bool) {
     unsafe {
         let trimmed_logo_part = trim_to_fit_term(GH_LOGO_VEC[LOGO_INDEX].to_string(), raw_term);
         print!(
@@ -59,6 +59,9 @@ fn print_logo(raw_term: &mut RawTerminal<Stdout>) {
             color::Fg(color::Reset),
             SPACE_OFFSET
         );
+        if is_info_printed {
+            print!("\r");
+        }
 
         // the last index is just empty space offsets
         if LOGO_INDEX < GH_LOGO_VEC.len() - 1 {
@@ -87,14 +90,16 @@ async fn get_user_info(login: &str, raw_term: &mut RawTerminal<Stdout>) {
 
         custom_print_line(
             format!(
-                "User: {} {} ({}) {} ",
+                "User: {} {} ({}) {}",
                 color::Fg(color::Red),
                 user_data.login,
                 user_data.name,
-                color::Fg(color::Reset)
+                color::Fg(color::Reset),
             ),
             raw_term,
         );
+
+        custom_print_line(format!(r#""{}""#, user_data.bio,), raw_term);
         //println!(r#"Bio: '{}'"#, userData.bio);
     }
 }
@@ -140,7 +145,7 @@ const GH_LOGO_VEC: [&str; 34] = [
 ];
 
 fn print_border(raw_term: &mut RawTerminal<Stdout>) {
-    print_logo(raw_term);
+    print_logo(raw_term, false);
 
     let border = "_______________________";
     let trimmed_border = trim_to_fit_term(border.to_string(), raw_term);
@@ -207,7 +212,7 @@ async fn get_user_work_info(login: &str, token: &str, raw_term: &mut RawTerminal
 
     custom_print_line(
         format!(
-            "Total contributions {}",
+            "Total contributions: {}",
             graph_resp_data
                 .data
                 .user
@@ -244,7 +249,7 @@ async fn get_user_work_info(login: &str, token: &str, raw_term: &mut RawTerminal
     }
 
     for i in 0..7 {
-        print_logo(raw_term);
+        print_logo(raw_term, false);
         for week in graph_resp_data
             .data
             .user
@@ -319,18 +324,21 @@ async fn main() {
         get_user_work_info(&login, &token, &mut raw_term).await;
     } else {
         match args.len() {
-            1 => panic!("Error: Enter GitHub username + token"),
+            1 => {
+                print_usage_line();
+                return;
+            }
             2 => {
+                println!("\rEnter GitHub token for full information.\r");
                 get_user_info(&args[1], &mut raw_term).await;
-                println!("Enter GitHub token for full information")
             }
             3 => {
-                println!("Save arguments to the config file?");
-                println!("Yes = [Y] No = [N]");
+                println!("Save arguments to the config file?\r");
+                println!("Yes = [Y] No = [N]]\r");
                 let mut read_buf = [0u8; 1];
                 io::stdin()
                     .read_exact(&mut read_buf)
-                    .expect("Couldn't read the input character");
+                    .expect("Couldn't read the input character\r");
 
                 let ch = read_buf[0] as char;
                 let ch = ch.to_lowercase().next().unwrap();
@@ -349,10 +357,14 @@ async fn main() {
 
     unsafe {
         while LOGO_INDEX < GH_LOGO_VEC.len() - 1 {
-            print_logo(&mut raw_term);
+            print_logo(&mut raw_term, true);
             println!();
         }
     }
+}
+
+fn print_usage_line() {
+    println!("Usage: ./ghfetch [GITHUB_LOGIN] [GITHUB_TOKEN]\r");
 }
 
 fn is_config_file_exists() -> bool {

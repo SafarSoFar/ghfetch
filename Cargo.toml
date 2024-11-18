@@ -1,5 +1,5 @@
 [package]
-name = "gitfetch"
+name = "ghfetch"
 version = "0.1.0"
 edition = "2021"
 
