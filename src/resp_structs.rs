@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct UserData {
     pub login: String,
     pub name: String,
-    pub bio: String,
+    pub bio: Option<String>,
     pub public_repos: u32,
     pub followers: u32,
     pub following: u32,

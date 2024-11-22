@@ -99,8 +99,9 @@ async fn get_user_info(login: &str, raw_term: &mut RawTerminal<Stdout>) {
             raw_term,
         );
 
-        custom_print_line(format!(r#""{}""#, user_data.bio,), raw_term);
-        //println!(r#"Bio: '{}'"#, userData.bio);
+        if let Some(bio) = user_data.bio {
+            custom_print_line(format!(r#""{}""#, bio,), raw_term);
+        }
     }
 }
 
